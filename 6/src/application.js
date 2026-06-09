@@ -41,5 +41,87 @@ const validate = (fields) => {
 };
 
 // BEGIN
+export default () => {
+  const state = {
+    form: {
+      valid: false,
+      errors: {},
+      processState: 'filling',
+    },
+  };
 
+  const container = document.querySelector('[data-container="sign-up"]');
+  const form = document.querySelector('[data-form="sign-up"]');
+  const submitButton = form.querySelector('input[type="submit"]');
+  const fields = ['name', 'email', 'password', 'passwordConfirmation'];
+
+  const watchedState = onChange(state, (path, value) => {
+    if (path === 'form.valid' || path === 'form.processState') {
+      if (watchedState.form.valid && watchedState.form.processState === 'filling') {
+        submitButton.removeAttribute('disabled');
+      } else {
+        submitButton.setAttribute('disabled', 'true');
+      }
+    }
+
+    if (path === 'form.errors') {
+      fields.forEach((fieldName) => {
+        const input = form.querySelector(`[name="${fieldName}"]`);
+        const errorFeedback = input.nextElementSibling;
+
+        if (errorFeedback && errorFeedback.classList.contains('invalid-feedback')) {
+          errorFeedback.remove();
+        }
+        input.classList.remove('is-invalid');
+
+        const fieldError = watchedState.form.errors[fieldName];
+
+        if (fieldError) {
+          input.classList.add('is-invalid');
+          const div = document.createElement('div');
+          div.classList.add('invalid-feedback');
+          div.textContent = fieldError.message;
+          input.after(div);
+        }
+      });
+    }
+
+    if (path === 'form.processState' && value === 'finished') {
+      container.textContent = 'User Created!';
+    }
+  });
+
+  form.addEventListener('input', () => {
+    const currentValues = {
+      name: form.querySelector('[name="name"]').value,
+      email: form.querySelector('[name="email"]').value,
+      password: form.querySelector('[name="password"]').value,
+      passwordConfirmation: form.querySelector('[name="passwordConfirmation"]').value,
+    };
+
+    const errors = validate(currentValues);
+    watchedState.form.errors = errors;
+    watchedState.form.valid = isEmpty(errors);
+  });
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    watchedState.form.processState = 'sending';
+
+    const currentValues = {
+      name: form.querySelector('[name="name"]').value,
+      email: form.querySelector('[name="email"]').value,
+      password: form.querySelector('[name="password"]').value,
+      passwordConfirmation: form.querySelector('[name="passwordConfirmation"]').value,
+    };
+
+    axios.post(routes.usersPath(), currentValues)
+      .then(() => {
+        watchedState.form.processState = 'finished';
+      })
+      .catch(() => {
+        watchedState.form.processState = 'filling';
+      });
+  });
+};
 // END
